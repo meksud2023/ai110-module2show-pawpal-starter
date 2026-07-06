@@ -8,6 +8,7 @@ classDiagram
         +String notificationPreference
         +addPet(pet) void
         +removePet(pet) void
+        +getAllTasks() List~Task~
         +viewSchedule(date) List~Task~
         +markTaskComplete(task) void
         +updatePreferences(prefs) void
@@ -45,9 +46,10 @@ classDiagram
     }
 
     class Scheduler {
-        +PriorityQueue~Task~ taskQueue
+        +List~Task~ taskQueue
         +DateTime currentTime
         +addTask(task) void
+        +addTasks(tasks) void
         +getNextTask() Task
         +getDailyPlan(date) List~Task~
         +reprioritize() void
@@ -57,4 +59,5 @@ classDiagram
 
     Owner "1" --> "*" Pet : owns
     Pet "1" --> "*" Task : has
+    Owner "1" ..> "1" Scheduler : feeds tasks to
     Scheduler "1" --> "*" Task : manages

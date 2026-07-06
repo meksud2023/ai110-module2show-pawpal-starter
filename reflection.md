@@ -12,13 +12,24 @@ A user of PawPal+ can perform three main actions:
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+My initial UML design centered on four classes, each with a clear responsibility:
+
+- **Owner** — represents the app user. It holds basic contact info and a list of the pets it owns, and is responsible for high-level actions like adding/removing pets, viewing the daily schedule, and marking tasks complete.
+- **Pet** — represents a single animal. It holds descriptive and medical details (species, age, weight, notes) and owns the list of care tasks that belong to it. Its responsibility is managing its own tasks and reporting a medical summary.
+- **Task** — represents one unit of care work (a feeding, walk, medication, or appointment). It is the object the scheduler prioritizes, so it holds its due time, duration, status, recurrence info, and a priority score, and is responsible for knowing whether it is overdue and computing its own priority.
+- **Scheduler** — the algorithmic "brain." It does not hold pet data; instead it takes tasks, orders them by priority, builds the daily plan, detects time conflicts, and generates reminders.
+
+The relationships were: an Owner *owns* many Pets, a Pet *has* many Tasks, and the Scheduler *manages* many Tasks. I used Python dataclasses for the data-heavy objects (Owner, Pet, Task) and a regular class for Scheduler since it is behavior-driven.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+After reviewing the skeleton, I made one change based on AI feedback:
+
+- **Added a `Scheduler.add_tasks(tasks)` method.** My original design connected `Owner → Pet → Task` and `Scheduler → Task` as two separate chains, but there was no link between them — tasks lived on a pet, yet the scheduler had no way to receive them. I added a batch-loading method so the app layer can collect all tasks across an owner's pets and feed them into the scheduler in one step. This closes the missing relationship between the data classes and the scheduling logic.
+
+- **Added an `Owner.get_all_tasks()` aggregator.** When implementing the scheduler, I needed a clean way for it to receive tasks. Rather than letting the Scheduler reach into each `Pet.tasks` list (which would tie it to the Pet structure), I gave the Owner a method that gathers every task across its pets into one list. The Scheduler then just calls `add_tasks(owner.get_all_tasks())`, keeping the two decoupled.
+
+I also identified (but chose not to restructure) a consistency consideration: tasks are referenced both in `Pet.tasks` and in the `Scheduler.task_queue`, so updates must be kept in sync. I decided to treat the pet's list as the source of truth and rebuild the scheduler's queue when needed, rather than duplicating state permanently. Re-sorting the queue as a plain list is acceptable here because a single owner only has a small number of daily tasks.
 
 ---
 

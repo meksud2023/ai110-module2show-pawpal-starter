@@ -44,14 +44,22 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+Terminal output from running the CLI demo script (`python main.py`). This verifies the
+backend logic works before it is connected to the Streamlit UI:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+PawPal+ | Owner: Jordan | Pets: Mochi, Luna
+
+Today's Schedule (ordered by priority)
+====================================================
+  TIME    TASK         PET      PRIORITY  STATUS
+  ------------------------------------------------
+  08:00   medication   Mochi    100       OVERDUE
+  11:00   medication   Luna     100       pending
+  10:00   feeding      Luna     60        pending
+  12:00   walk         Mochi    40        pending
+
+Next up: medication for Mochi at 08:00
 ```
 
 ## 🧪 Testing PawPal+
@@ -68,6 +76,7 @@ Sample test output:
 
 ```
 # Paste your pytest output here
+
 ```
 
 ## 📐 Smarter Scheduling
