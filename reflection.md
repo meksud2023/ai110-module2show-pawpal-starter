@@ -37,13 +37,21 @@ I also identified (but chose not to restructure) a consistency consideration: ta
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+My scheduler considers three constraints when ordering a day's tasks:
+
+1. **Urgency (overdue):** any task past its due time is pushed to the top, because a missed medication or feeding is the most time-sensitive problem.
+2. **Priority by task type:** each type has a weight — medication (100) > appointment (80) > feeding (60) > walk (40) — so health-critical care outranks optional care.
+3. **Due time:** among tasks of equal priority, earlier ones come first.
+
+I decided urgency mattered most because for a pet owner, the real cost is *forgetting* something important, not doing things in a slightly different order. Task type came second because it reflects how serious the consequences are (a skipped pill matters more than a skipped walk). Time is the natural tiebreaker.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+One clear tradeoff is in **conflict detection**. My first version compared only *adjacent* tasks after sorting by time, which was fast (O(n log n)) but wrong — it missed a long task (e.g. a 45-minute feeding) overlapping a *non-adjacent* later task. I switched to a sweep that compares each task to the ones after it and stops as soon as one starts after the current task ends. This is worst-case O(n²), but the early stop keeps it close to linear for realistic schedules, and it is correct.
+
+That tradeoff is reasonable here because a pet owner only has a handful of tasks per day, so the extra cost is negligible, and correctness matters far more than speed at this scale.
+
+A second tradeoff is in **recurring tasks**: I generate the next occurrence only when the current one is completed ("on-completion"), rather than expanding a whole week ahead. This keeps the logic simple and always in sync, at the cost of not being able to preview future recurrences until earlier ones are done — an acceptable limit for a daily-use planner.
 
 ---
 

@@ -81,6 +81,38 @@ class Task:
         }
         return self.due_time + deltas.get(rule, timedelta())
 
+    def build_next_occurrence(self) -> "Task | None":
+        """Return a new Task for this task's next occurrence, or None if not recurring.
+
+        This is the single place the rollover instance is created, so every
+        completion path (Owner or Scheduler) produces an identical next task.
+        """
+        if not self.is_recurring:
+            return None
+        next_time = self.next_occurrence()
+        return Task(
+            task_id=f"{self.task_id}-{next_time.strftime('%Y%m%d%H%M')}",
+            type=self.type,
+            pet=self.pet,
+            due_time=next_time,
+            is_recurring=True,
+            recurrence_rule=self.recurrence_rule,
+            duration=self.duration,
+        )
+
+    def mark_task_done_and_roll_over(self) -> "Task | None":
+        """Mark complete and, if recurring, add the next occurrence to this task's pet.
+
+        Shared by both completion paths (Owner and Scheduler) so recurring tasks
+        always roll over regardless of how they are completed. The pet's task list
+        is the source of truth; the Scheduler additionally syncs its own queue.
+        """
+        self.mark_complete()
+        new_task = self.build_next_occurrence()
+        if new_task is not None:
+            self.pet.add_task(new_task)
+        return new_task
+
 
 @dataclass
 class Pet:
@@ -145,9 +177,9 @@ class Owner:
         """Return all tasks across the owner's pets that fall on the given day."""
         return [t for t in self.get_all_tasks() if t.due_time.date() == date.date()]
 
-    def mark_task_complete(self, task: Task) -> None:
-        """Mark one of the owner's tasks as complete."""
-        task.mark_complete()
+    def mark_task_complete(self, task: Task) -> Task | None:
+        """Mark a task complete; if it recurs, schedule the next one on the pet."""
+        return task.mark_task_done_and_roll_over()
 
     def update_preferences(self, prefs: str) -> None:
         """Update the owner's notification preference."""
@@ -191,28 +223,70 @@ class Scheduler:
         ]
         return sorted(todays, key=self._sort_key)
 
+    def sort_by_time(self) -> list[Task]:
+        """Return all tasks in chronological order (earliest due time first)."""
+        return sorted(self.task_queue, key=lambda t: t.due_time)
+
+    def filter_tasks(self, pet: "Pet | None" = None,
+                     status: "TaskStatus | None" = None) -> list[Task]:
+        """Return tasks matching the given pet and/or status (both optional)."""
+        result = self.task_queue
+        if pet is not None:
+            result = [t for t in result if t.pet == pet]
+        if status is not None:
+            result = [t for t in result if t.status == status]
+        return list(result)
+
     def reprioritize(self) -> None:
         """Recompute every task's priority and re-order the queue in place."""
         for task in self.task_queue:
             task.calculate_priority()
         self.task_queue.sort(key=self._sort_key)
 
-    def detect_conflicts(self) -> list[Task]:
-        """Return tasks whose time windows (due_time + duration) overlap another task."""
+    def detect_conflicts(self) -> list[tuple[Task, Task]]:
+        """Return every pair of pending tasks whose time windows overlap.
+
+        Sorts by start time, then for each task scans the tasks that follow and
+        stops (break) at the first one starting after this task ends -- since the
+        list is sorted, no later task can overlap either. This catches a long task
+        overlapping a non-adjacent later task, which a neighbor-only scan misses.
+        """
         pending = sorted(
             [t for t in self.task_queue if t.status == TaskStatus.PENDING],
             key=lambda t: t.due_time,
         )
-        conflicts: list[Task] = []
-        for i in range(len(pending) - 1):
-            current, nxt = pending[i], pending[i + 1]
-            current_end = current.due_time + timedelta(minutes=current.duration)
-            if current_end > nxt.due_time:
-                if current not in conflicts:
-                    conflicts.append(current)
-                if nxt not in conflicts:
-                    conflicts.append(nxt)
+        conflicts: list[tuple[Task, Task]] = []
+        for i in range(len(pending)):
+            a = pending[i]
+            a_end = a.due_time + timedelta(minutes=a.duration)
+            for j in range(i + 1, len(pending)):
+                b = pending[j]
+                # Same start time is always a conflict (even with no duration);
+                # otherwise they conflict only if b starts before a ends. This
+                # lets back-to-back tasks (b starts exactly when a ends) pass.
+                if b.due_time == a.due_time or b.due_time < a_end:
+                    conflicts.append((a, b))
+                else:
+                    break  # sorted by start: no later task can overlap a
         return conflicts
+
+    def get_conflict_warnings(self) -> list[str]:
+        """Return a plain-text warning for each conflicting pair (never raises)."""
+        warnings = []
+        for a, b in self.detect_conflicts():
+            warnings.append(
+                f"WARNING: {a.type.value} for {a.pet.name} at "
+                f"{a.due_time.strftime('%H:%M')} clashes with "
+                f"{b.type.value} for {b.pet.name} at {b.due_time.strftime('%H:%M')}"
+            )
+        return warnings
+
+    def complete_task(self, task: Task) -> Task | None:
+        """Mark a task complete; if it recurs, roll it over and keep the queue in sync."""
+        new_task = task.mark_task_done_and_roll_over()
+        if new_task is not None:
+            self.add_task(new_task)  # keep the scheduler queue in sync
+        return new_task
 
     def generate_reminders(self) -> list[str]:
         """Return human-readable reminder strings for overdue and upcoming tasks."""

@@ -43,21 +43,56 @@ def main() -> None:
     owner.add_pet(mochi)
     owner.add_pet(luna)
 
-    # 3. Add at least three tasks with different times across the two pets.
+    # 3. Add tasks with different times across the two pets.
+    #    Mochi's feeding (45 min) overlaps his walk to demonstrate conflict detection.
+    #    Luna's medication is recurring (daily).
     mochi.add_task(Task("t1", TaskType.MEDICATION, mochi, now - timedelta(hours=1)))  # overdue
-    mochi.add_task(Task("t2", TaskType.WALK, mochi, now + timedelta(hours=3)))
-    luna.add_task(Task("t3", TaskType.FEEDING, luna, now + timedelta(hours=1)))
-    luna.add_task(Task("t4", TaskType.MEDICATION, luna, now + timedelta(hours=2)))
+    mochi.add_task(Task("t2", TaskType.FEEDING, mochi, now + timedelta(hours=1), duration=45))
+    mochi.add_task(Task("t3", TaskType.WALK, mochi, now + timedelta(hours=1, minutes=30)))
+    luna.add_task(Task("t4", TaskType.FEEDING, luna, now + timedelta(hours=1)))
+    luna.add_task(Task("t5", TaskType.MEDICATION, luna, now + timedelta(hours=2),
+                       is_recurring=True, recurrence_rule="daily"))
+    # Two tasks booked at the EXACT same time (13:00) to demonstrate the
+    # same-time conflict warning, even though neither has a duration.
+    mochi.add_task(Task("t6", TaskType.WALK, mochi, now + timedelta(hours=4)))
+    luna.add_task(Task("t7", TaskType.APPOINTMENT, luna, now + timedelta(hours=4)))
 
     # 4. The Scheduler pulls all tasks from the owner and orders them.
     scheduler = Scheduler(current_time=now)
     scheduler.add_tasks(owner.get_all_tasks())
 
     print("PawPal+ | Owner:", owner.name, f"| Pets: {mochi.name}, {luna.name}")
+
+    # Priority view (the "smart" ordering).
     print_schedule("Today's Schedule (ordered by priority)", scheduler.get_daily_plan(now), now)
 
     nxt = scheduler.get_next_task()
     print(f"\nNext up: {nxt.type.value} for {nxt.pet.name} at {nxt.due_time.strftime('%H:%M')}")
+
+    # Sort-by-time view.
+    print_schedule("Same tasks, sorted by time of day", scheduler.sort_by_time(), now)
+
+    # Filter view: just Mochi's tasks.
+    print_schedule(f"Filtered: only {mochi.name}'s tasks",
+                   scheduler.filter_tasks(pet=mochi), now)
+
+    # Conflict detection: print a lightweight warning per clash (never crashes).
+    print("\nTime conflicts")
+    print("=" * 52)
+    warnings = scheduler.get_conflict_warnings()
+    if not warnings:
+        print("  (none)")
+    for w in warnings:
+        print(" ", w)
+
+    # Recurring rollover: completing Luna's daily med schedules tomorrow's automatically.
+    luna_med = luna.tasks[1]
+    next_med = scheduler.complete_task(luna_med)
+    print("\nRecurring task rollover")
+    print("=" * 52)
+    print(f"  Completed {luna_med.type.value} for {luna.name} "
+          f"(due {luna_med.due_time.strftime('%b %d %H:%M')})")
+    print(f"  Auto-scheduled next: due {next_med.due_time.strftime('%b %d %H:%M')}")
 
 
 if __name__ == "__main__":

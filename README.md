@@ -56,10 +56,45 @@ Today's Schedule (ordered by priority)
   ------------------------------------------------
   08:00   medication   Mochi    100       OVERDUE
   11:00   medication   Luna     100       pending
+  13:00   appointment  Luna     80        pending
+  10:00   feeding      Mochi    60        pending
   10:00   feeding      Luna     60        pending
-  12:00   walk         Mochi    40        pending
+  10:30   walk         Mochi    40        pending
+  13:00   walk         Mochi    40        pending
 
 Next up: medication for Mochi at 08:00
+
+Same tasks, sorted by time of day
+====================================================
+  TIME    TASK         PET      PRIORITY  STATUS
+  ------------------------------------------------
+  08:00   medication   Mochi    100       OVERDUE
+  10:00   feeding      Mochi    60        pending
+  10:00   feeding      Luna     60        pending
+  10:30   walk         Mochi    40        pending
+  11:00   medication   Luna     100       pending
+  13:00   walk         Mochi    40        pending
+  13:00   appointment  Luna     80        pending
+
+Filtered: only Mochi's tasks
+====================================================
+  TIME    TASK         PET      PRIORITY  STATUS
+  ------------------------------------------------
+  08:00   medication   Mochi    100       OVERDUE
+  10:00   feeding      Mochi    60        pending
+  10:30   walk         Mochi    40        pending
+  13:00   walk         Mochi    40        pending
+
+Time conflicts
+====================================================
+  WARNING: feeding for Mochi at 10:00 clashes with feeding for Luna at 10:00
+  WARNING: feeding for Mochi at 10:00 clashes with walk for Mochi at 10:30
+  WARNING: walk for Mochi at 13:00 clashes with appointment for Luna at 13:00
+
+Recurring task rollover
+====================================================
+  Completed medication for Luna (due Jul 06 11:00)
+  Auto-scheduled next: due Jul 07 11:00
 ```
 
 ## 🧪 Testing PawPal+
@@ -81,14 +116,38 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+PawPal+ adds simple algorithms on top of the core classes to make the day's plan
+"smart." Each feature and the method that implements it:
 
-| Feature | Method(s) | Notes |
-|---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+### Sorting
+- **Priority + urgency order** — `Scheduler.get_daily_plan(date)` sorts a day's pending
+  tasks so overdue tasks come first, then by task-type priority
+  (medication > appointment > feeding > walk), then by due time.
+- **Chronological order** — `Scheduler.sort_by_time()` returns the same tasks ordered
+  purely by clock time, for owners who prefer to read their day top to bottom.
+
+### Filtering
+- `Scheduler.filter_tasks(pet=None, status=None)` narrows the task list by pet, by
+  completion status, or both (the two arguments are optional and combinable — e.g.
+  "only Mochi's pending tasks"). Runs in a single O(n) pass.
+
+### Conflict detection
+- `Scheduler.detect_conflicts()` returns every pair of pending tasks whose times
+  clash. It sorts by start time, then for each task scans the ones that follow and
+  stops early once a task starts after the current one ends. Two tasks at the **exact
+  same time** are always flagged (even with no duration), while genuinely back-to-back
+  tasks are not.
+- `Scheduler.get_conflict_warnings()` wraps that result into plain-text warning
+  strings (`"WARNING: ... clashes with ..."`) and never raises — the program keeps
+  running and simply reports each clash.
+
+### Recurring tasks
+- `Task.next_occurrence()` computes the next due time from the recurrence rule
+  (`hourly` / `daily` / `weekly`) using `timedelta`.
+- Completing a recurring task automatically schedules the next one. Both completion
+  paths — `Owner.mark_task_complete(task)` and `Scheduler.complete_task(task)` —
+  delegate to the shared `Task.mark_task_done_and_roll_over()`, so a recurring task
+  always rolls over no matter how it is completed.
 
 ## 📸 Demo Walkthrough
 
