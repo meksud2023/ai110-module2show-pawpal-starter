@@ -2,6 +2,14 @@
 
 ## 1. System Design
 
+**Core user actions**
+
+A user of PawPal+ can perform three main actions:
+
+1. **Add a pet** — the owner registers a pet with details like name, species, age, and medical notes.
+2. **Schedule a task** — the owner adds a care task (such as a walk, feeding, or medication) for a pet, setting its due time and whether it repeats.
+3. **View today's tasks** — the owner sees all of the day's tasks across their pets, automatically sorted by priority so urgent items (like an overdue medication) appear first.
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
