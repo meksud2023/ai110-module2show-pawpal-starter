@@ -99,20 +99,49 @@ Recurring task rollover
 
 ## 🧪 Testing PawPal+
 
+Run the automated test suite from the project root with:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+**What the tests cover** (`tests/test_pawpal.py`):
+
+- **Core objects** — completing a task changes its status; adding a task grows the pet's list.
+- **Sorting** — `sort_by_time()` returns tasks in chronological order.
+- **Filtering** — `filter_tasks()` narrows by pet, status, or both.
+- **Priority** — an overdue medication outranks an earlier low-priority task.
+- **Conflict detection** — overlapping windows are flagged, and two tasks at the *exact same time* raise a warning without crashing.
+- **Recurrence** — completing a daily task creates the next day's task; the weekly rule adds 7 days; both the Owner and Scheduler completion paths roll over consistently.
+- **Edge case** — a pet/owner with no tasks returns empty results and never errors.
+
+Successful test run:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.10.1, pytest-9.0.3, pluggy-1.6.0
+collected 10 items
 
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 10%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 20%]
+tests/test_pawpal.py::test_sort_by_time_is_chronological PASSED          [ 30%]
+tests/test_pawpal.py::test_filter_by_pet_and_status PASSED               [ 40%]
+tests/test_pawpal.py::test_detect_conflicts_finds_overlap PASSED         [ 50%]
+tests/test_pawpal.py::test_same_time_conflict_produces_warning PASSED    [ 60%]
+tests/test_pawpal.py::test_recurring_task_rolls_over_on_completion PASSED [ 70%]
+tests/test_pawpal.py::test_get_next_task_prioritizes_overdue_medication PASSED [ 80%]
+tests/test_pawpal.py::test_empty_schedule_does_not_crash PASSED          [ 90%]
+tests/test_pawpal.py::test_owner_completion_path_also_rolls_over PASSED  [100%]
+
+============================= 10 passed in 0.07s ==============================
 ```
+
+**Confidence Level: ★★★★☆ (4/5)**
+
+All 10 tests pass and cover every core behavior plus the key edge cases (same-time
+conflicts, empty schedules, both recurrence paths). I held back one star because the
+tests use small, hand-built scenarios — I'd want to test larger schedules, invalid or
+malformed recurrence rules, and tasks spanning across midnight before rating it 5/5.
 
 ## 📐 Smarter Scheduling
 
