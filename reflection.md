@@ -59,13 +59,21 @@ A second tradeoff is in **recurring tasks**: I generate the next occurrence only
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used my AI coding assistant across the whole project, but for different jobs at each stage:
+
+- **Design brainstorming:** listing the core classes and their attributes/methods, and pressure-testing the relationships before I wrote any code.
+- **Scaffolding:** turning the UML into dataclass stubs, then filling in method logic.
+- **Algorithm design:** comparing approaches for sorting, conflict detection, and recurrence, and weighing their clarity vs. efficiency.
+- **Testing:** drafting a test plan (happy paths + edge cases) and writing the pytest functions.
+- **Documentation:** docstrings, the README, and this reflection.
+
+The most helpful prompts were **specific and design-oriented** rather than "write this for me." For example, asking *"how should the Scheduler retrieve tasks from the Owner's pets?"* led to a clean `get_all_tasks()` aggregator instead of the Scheduler reaching into pet internals. Asking for *tradeoffs* ("give me a lightweight conflict strategy that warns instead of crashing") produced better options than asking for a single answer.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+The clearest moment I did **not** accept a suggestion as-is was the **conflict detection algorithm**. The first version only compared *adjacent* tasks after sorting — it looked correct and was efficient, but when I ran the demo I saw it silently missed a 45-minute feeding overlapping a non-adjacent later walk. I rejected it and replaced it with an interval sweep that compares each task to all following tasks until one starts after it ends. I also later caught that it treated two zero-duration tasks at the *exact same time* as non-conflicting, and fixed the comparison.
+
+I verified AI suggestions by **running them, not just reading them**: the CLI demo exposed the missing conflict, and the pytest suite (10 tests) pins down each behavior — including the edge cases — so a regression would fail loudly. I also refactored an AI suggestion that put recurrence rollover only in `Scheduler.complete_task`, because it left `Owner.mark_task_complete` silently not rolling over; I consolidated both paths onto one shared `Task` method.
 
 ---
 
@@ -73,13 +81,21 @@ A second tradeoff is in **recurring tasks**: I generate the next occurrence only
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+I wrote 10 automated tests in `tests/test_pawpal.py` covering:
+
+- **Core objects** — completing a task changes its status; adding a task grows the pet's list.
+- **Sorting** — `sort_by_time()` returns tasks in chronological order.
+- **Filtering** — `filter_tasks()` narrows by pet, status, or both.
+- **Priority** — an overdue medication outranks an earlier, lower-priority task.
+- **Conflict detection** — overlapping windows are flagged, and two tasks at the exact same time raise a warning without crashing.
+- **Recurrence** — a daily task rolls over to the next day, a weekly task adds 7 days, and both the Owner and Scheduler completion paths behave identically.
+- **Edge case** — a pet/owner with no tasks returns empty results instead of erroring.
+
+These were important because they cover the parts most likely to break: the *ordering logic* (the whole point of the app), the *conflict edge cases* (same-time vs. back-to-back), and the *recurrence consistency* between two completion paths — exactly the bug I had to fix earlier.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I am fairly confident — **4 out of 5**. All 10 tests pass, and they cover every core behavior plus the key edge cases. I held back one star because the tests use small, hand-built scenarios. With more time I would test **larger schedules**, **invalid or misspelled recurrence rules** (e.g. `"biweekly"`), and **tasks that cross midnight**, since date-boundary handling is where I'd most expect a hidden bug.
 
 ---
 
@@ -87,12 +103,12 @@ A second tradeoff is in **recurring tasks**: I generate the next occurrence only
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+I'm most satisfied with the **separation between the logic layer and the UI**. Because all the intelligence lives in `pawpal_system.py` and was verified from the CLI first, wiring it into Streamlit at the end was mostly display code — the hard parts were already tested. The prioritization logic (overdue medication surfacing to the top) is the feature I'm proudest of because it makes the app feel genuinely "smart" rather than just a list.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+If I had another iteration I'd rethink how tasks are stored. Right now a task lives both in `Pet.tasks` and in the `Scheduler.task_queue`, and I keep them in sync by treating the pet's list as the source of truth and rebuilding the queue. That works, but a cleaner design would have the Scheduler always read live from the Owner rather than holding its own copy, removing the risk of drift entirely. I'd also add a "generate-ahead" option for recurring tasks so an owner can preview the week.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+The biggest thing I learned is what it means to be the **lead architect** when working with a powerful AI assistant. The AI is excellent at producing plausible, working-looking code quickly — but "looks right" is not "is right." My job was to make the design decisions (where logic belongs, which tradeoffs to accept), to *run and test* what the AI produced instead of trusting it, and to catch the subtle bugs it introduced (the adjacent-only conflict check, the inconsistent completion paths). Using **separate chat sessions per phase** — one for design, one for algorithms, one for testing — kept each conversation focused and stopped earlier context from muddying later decisions, which made it much easier to stay in control of the overall architecture rather than letting the AI drift it.

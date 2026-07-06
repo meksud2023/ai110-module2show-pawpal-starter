@@ -12,6 +12,17 @@ A busy pet owner needs help staying consistent with pet care. They want an assis
 
 Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
 
+## ✨ Features
+
+PawPal+ turns a list of care tasks into a smart daily plan:
+
+- **Priority scheduling** — tasks are ordered by urgency (overdue first), then by task-type importance (medication > appointment > feeding > walk), then by time of day.
+- **Sort by time** — a one-click chronological view of the same tasks (`Scheduler.sort_by_time()`).
+- **Filtering** — narrow the plan by pet, by completion status, or both (`Scheduler.filter_tasks()`).
+- **Conflict warnings** — detects tasks whose times overlap *or* fall at the exact same moment, and reports each clash as a plain-language warning instead of crashing (`Scheduler.detect_conflicts()` / `get_conflict_warnings()`).
+- **Daily / weekly recurrence** — completing a recurring task automatically schedules its next occurrence using `timedelta` (daily = +1 day, weekly = +7 days).
+- **Multi-pet support** — one owner can track several pets, and the scheduler aggregates every pet's tasks into a single plan.
+
 ## What you will build
 
 Your final app should:
@@ -180,12 +191,68 @@ PawPal+ adds simple algorithms on top of the core classes to make the day's plan
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Running it
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+- **Web UI:** `streamlit run app.py`
+- **CLI demo:** `python main.py`
+
+### What the UI lets you do
+
+The Streamlit app ([app.py](app.py)) is a thin layer over the logic in
+[pawpal_system.py](pawpal_system.py). A user can:
+
+1. Set the **owner name** and **add one or more pets** (name + species).
+2. **Add tasks** for a pet — choosing the type (feeding / walk / medication / appointment),
+   time, duration, and whether it recurs (daily / weekly / hourly).
+3. View **Today's Schedule** as a table, and toggle the order between **Priority** and
+   **Time of day**, or **filter** to a single pet.
+4. See **conflict warnings** surfaced at the top of the schedule the moment two tasks clash.
+5. **Mark a task complete** — and if it was recurring, watch the next occurrence get
+   scheduled automatically.
+
+### Example workflow
+
+> Add pet "Mochi" → add a **medication at 08:00** and a **walk at 11:00** → add pet
+> "Luna" with a **feeding at 10:00** → open **Today's Schedule**. The overdue medication
+> sorts to the top by priority; switching to *Time of day* reorders it chronologically;
+> booking two tasks at the same time raises a warning banner. Completing Luna's daily
+> medication auto-schedules tomorrow's.
+
+### Key Scheduler behaviors shown
+- **Sorting** — priority-and-urgency order vs. chronological order.
+- **Filtering** — per-pet and per-status views.
+- **Conflict warnings** — same-time and overlapping tasks flagged without crashing.
+- **Recurrence** — automatic rollover of daily/weekly tasks on completion.
+
+### Sample CLI output (`python main.py`)
+
+```
+PawPal+ | Owner: Jordan | Pets: Mochi, Luna
+
+Today's Schedule (ordered by priority)
+====================================================
+  TIME    TASK         PET      PRIORITY  STATUS
+  ------------------------------------------------
+  08:00   medication   Mochi    100       OVERDUE
+  11:00   medication   Luna     100       pending
+  13:00   appointment  Luna     80        pending
+  10:00   feeding      Mochi    60        pending
+  10:00   feeding      Luna     60        pending
+  10:30   walk         Mochi    40        pending
+  13:00   walk         Mochi    40        pending
+
+Next up: medication for Mochi at 08:00
+
+Time conflicts
+====================================================
+  WARNING: feeding for Mochi at 10:00 clashes with feeding for Luna at 10:00
+  WARNING: feeding for Mochi at 10:00 clashes with walk for Mochi at 10:30
+  WARNING: walk for Mochi at 13:00 clashes with appointment for Luna at 13:00
+
+Recurring task rollover
+====================================================
+  Completed medication for Luna (due Jul 06 11:00)
+  Auto-scheduled next: due Jul 07 11:00
+```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->

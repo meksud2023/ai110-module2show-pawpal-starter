@@ -1,0 +1,88 @@
+classDiagram
+    class Owner {
+        +String ownerId
+        +String name
+        +String email
+        +String phone
+        +List~Pet~ pets
+        +String notificationPreference
+        +addPet(pet) void
+        +removePet(pet) void
+        +getAllTasks() List~Task~
+        +viewSchedule(date) List~Task~
+        +markTaskComplete(task) Task
+        +updatePreferences(prefs) void
+    }
+
+    class Pet {
+        +String petId
+        +String name
+        +String species
+        +String breed
+        +int age
+        +double weight
+        +String medicalNotes
+        +List~Task~ tasks
+        +addTask(task) void
+        +removeTask(task) void
+        +getUpcomingTasks() List~Task~
+        +getMedicalSummary() String
+    }
+
+    class Task {
+        +String taskId
+        +TaskType type
+        +Pet pet
+        +DateTime dueTime
+        +int priority
+        +boolean isRecurring
+        +String recurrenceRule
+        +TaskStatus status
+        +int duration
+        +markComplete() void
+        +isOverdue(currentTime) boolean
+        +calculatePriority() int
+        +nextOccurrence() DateTime
+        +buildNextOccurrence() Task
+        +markTaskDoneAndRollOver() Task
+    }
+
+    class Scheduler {
+        +List~Task~ taskQueue
+        +DateTime currentTime
+        +addTask(task) void
+        +addTasks(tasks) void
+        +getNextTask() Task
+        +getDailyPlan(date) List~Task~
+        +sortByTime() List~Task~
+        +filterTasks(pet, status) List~Task~
+        +reprioritize() void
+        +detectConflicts() List~TaskPair~
+        +getConflictWarnings() List~String~
+        +completeTask(task) Task
+        +generateReminders() List~String~
+    }
+
+    class TaskType {
+        <<enumeration>>
+        FEEDING
+        WALK
+        MEDICATION
+        APPOINTMENT
+    }
+
+    class TaskStatus {
+        <<enumeration>>
+        PENDING
+        COMPLETED
+        MISSED
+        OVERDUE
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Pet "1" --> "*" Task : has
+    Owner "1" ..> "1" Scheduler : feeds tasks to
+    Scheduler "1" --> "*" Task : manages
+    Task ..> Task : rolls over (recurrence)
+    Task --> TaskType : has a
+    Task --> TaskStatus : has a
